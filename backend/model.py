@@ -152,24 +152,17 @@ def load_model():
         return movies, similarity
 
     elif os.path.exists(MOVIES_PKL):
-        print("movies.pkl found. Computing similarity matrix in RAM...")
+        print("movies.pkl found. Computing similarity matrix in RAM (float32)...")
         with open(MOVIES_PKL, 'rb') as f:
             movies = pickle.load(f)
 
         cv = CountVectorizer(max_features=5000, stop_words='english')
-        vectors = cv.fit_transform(movies['tags']).toarray()
-        similarity = cosine_similarity(vectors)
+        vectors = cv.fit_transform(movies['tags'])
+        similarity = cosine_similarity(vectors).astype(np.float32)
 
-        try:
-            os.makedirs(ARTIFACTS_DIR, exist_ok=True)
-            with open(SIMILARITY_PKL, 'wb') as f:
-                pickle.dump(similarity, f)
-            print("Saved similarity.pkl for future requests.")
-        except Exception as e:
-            print(f"Notice: Could not write similarity.pkl to disk ({e}), running in-memory.")
-
-        print(f"Model loaded: {len(movies)} movies, similarity matrix {similarity.shape}")
+        print(f"Model loaded: {len(movies)} movies, similarity matrix {similarity.shape} ({similarity.nbytes / (1024**2):.1f} MB)")
         return movies, similarity
+
 
     else:
         print("No pre-built model found. Building from scratch...")

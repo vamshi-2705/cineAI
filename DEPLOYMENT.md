@@ -41,7 +41,7 @@ git push origin main
    - **Root Directory**: `backend`
    - **Runtime**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn -w 2 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT`
+   - **Start Command**: `gunicorn -w 1 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT`
    - **Instance Type**: `Free`
 4. Under **Environment Variables**, add:
    - `TMDB_API_KEY` = `your_tmdb_api_key_here`
