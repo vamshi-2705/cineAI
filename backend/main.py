@@ -28,6 +28,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import requests
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 # Import our ML functions
@@ -79,22 +81,47 @@ print(f"Server ready! {len(movies_df)} movies loaded.")
 
 
 # ===========================================================
+# IN-MEMORY TTL CACHE FOR TMDB API RESPONSES
+# Avoids redundant API calls — cache expires after 10 minutes.
+# ===========================================================
+
+TMDB_CACHE: dict = {}          # { key: (value, expires_at) }
+CACHE_TTL  = 1800              # seconds — 30 minutes
+
+def cache_get(key: str):
+    entry = TMDB_CACHE.get(key)
+    if entry and time.time() < entry[1]:
+        return entry[0]
+    return None
+
+def cache_set(key: str, value):
+    TMDB_CACHE[key] = (value, time.time() + CACHE_TTL)
+
+
+# ===========================================================
 # TMDB HELPER FUNCTIONS
 # ===========================================================
 
 def get_tmdb_details(movie_id: int) -> dict:
     """
-    Fetches movie details from TMDB API:
+    Fetches movie details from TMDB API (cached for 10 min):
     poster, backdrop, overview, tagline, runtime, budget, revenue, status.
 
     Returns empty dict if the API call fails (graceful degradation).
     """
     if not TMDB_API_KEY:
         return {}
+
+    # Return cached result if still valid
+    cache_key = f"details_{movie_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         url    = f"{TMDB_BASE}/movie/{movie_id}"
         params = {"api_key": TMDB_API_KEY}
-        res    = requests.get(url, params=params, timeout=5)
+        res    = requests.get(url, params=params, timeout=8)
 
         if res.status_code != 200:
             return {}
@@ -105,7 +132,7 @@ def get_tmdb_details(movie_id: int) -> dict:
         poster_path   = data.get("poster_path")
         backdrop_path = data.get("backdrop_path")
 
-        return {
+        result = {
             "poster"   : TMDB_IMG_W500 + poster_path   if poster_path   else None,
             "backdrop" : TMDB_IMG_ORIG + backdrop_path  if backdrop_path  else None,
             "overview" : data.get("overview", ""),
@@ -115,23 +142,31 @@ def get_tmdb_details(movie_id: int) -> dict:
             "revenue"  : data.get("revenue", 0),
             "status"   : data.get("status", ""),
         }
+        cache_set(cache_key, result)
+        return result
     except Exception:
         return {}
 
 
 def get_tmdb_cast(movie_id: int) -> list:
     """
-    Fetches top 6 cast members from TMDB API.
+    Fetches top 6 cast members from TMDB API (cached for 10 min).
     Each cast member includes: name, character, profile photo URL.
 
     Returns empty list if the API call fails.
     """
     if not TMDB_API_KEY:
         return []
+
+    cache_key = f"cast_{movie_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         url    = f"{TMDB_BASE}/movie/{movie_id}/credits"
         params = {"api_key": TMDB_API_KEY}
-        res    = requests.get(url, params=params, timeout=5)
+        res    = requests.get(url, params=params, timeout=8)
 
         if res.status_code != 200:
             return []
@@ -147,6 +182,7 @@ def get_tmdb_cast(movie_id: int) -> list:
                 "profile"   : TMDB_IMG_W500 + profile_path if profile_path else None,
             })
 
+        cache_set(cache_key, cast)
         return cast
     except Exception:
         return []
@@ -182,17 +218,21 @@ def search(q: str = Query(..., min_length=2), limit: int = 10):
     """
     results = search_movies(q, movies_df, limit)
 
-    # Enrich each result with a poster image from TMDB
-    for movie in results:
+    # Enrich each result with a poster image from TMDB (parallel)
+    def _enrich_search(movie):
         details = get_tmdb_details(movie["movie_id"])
         movie["poster"] = details.get("poster")
+        return movie
+
+    with ThreadPoolExecutor(max_workers=min(len(results), 8)) as pool:
+        list(pool.map(_enrich_search, results))
 
     return {"results": results, "count": len(results)}
 
 
 # ── Popular / Trending Movies ──────────────────────────────
 @app.get("/api/movies/popular", tags=["Movies"])
-def popular(limit: int = 20):
+def popular(limit: int = 20):  # default 20 — keeps initial load fast
     """
     Returns top N movies sorted by TMDB popularity score.
     Used for the 'Trending Now' section on the homepage.
@@ -201,11 +241,15 @@ def popular(limit: int = 20):
     """
     movies = get_popular_movies(movies_df, limit)
 
-    # Enrich with poster and overview from TMDB
-    for movie in movies:
+    # Enrich with poster and overview from TMDB — all calls run in parallel
+    def _enrich_popular(movie):
         details = get_tmdb_details(movie["movie_id"])
         movie["poster"]   = details.get("poster")
         movie["overview"] = details.get("overview", "")
+        return movie
+
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        list(pool.map(_enrich_popular, movies))
 
     return {"movies": movies, "count": len(movies)}
 
@@ -248,11 +292,15 @@ def recommend_by_favorites(
     all_recs.sort(key=lambda x: x["similarity_score"], reverse=True)
     top_recs = all_recs[:n]
 
-    # Enrich with TMDB poster and overview
-    for rec in top_recs:
+    # Enrich with TMDB poster and overview — parallel
+    def _enrich_rec(rec):
         details = get_tmdb_details(rec["movie_id"])
         rec["poster"]   = details.get("poster")
         rec["overview"] = details.get("overview", "")
+        return rec
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        list(pool.map(_enrich_rec, top_recs))
 
     return {
         "recommendations" : top_recs,
@@ -334,11 +382,15 @@ def recommend(
     else:
         recommendations = recommendations[:n]
 
-    # Enrich each recommendation with TMDB poster and overview
-    for rec in recommendations:
+    # Enrich each recommendation with TMDB poster and overview — parallel
+    def _enrich_r(rec):
         details = get_tmdb_details(rec["movie_id"])
         rec["poster"]   = details.get("poster")
         rec["overview"] = details.get("overview", "")
+        return rec
+
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        list(pool.map(_enrich_r, recommendations))
 
     return {
         "movie_id"        : movie_id,
