@@ -1,21 +1,27 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { FavoritesProvider } from './context/FavoritesContext.jsx'
+import Navbar from './components/Navbar.jsx'
+import Footer from './components/Footer.jsx'
+import HomePage from './pages/HomePage.jsx'
+import MoviePage from './pages/MoviePage.jsx'
+import FavoritesPage from './pages/FavoritesPage.jsx'
+import NotFoundPage from './pages/NotFoundPage.jsx'
 
 function App() {
   return (
     <FavoritesProvider>
       <BrowserRouter>
+        {/* Sticky navbar rendered on all pages */}
+        <Navbar />
         <Routes>
-          {/* Routes will be added in Day 5+ */}
-          <Route path="/" element={
-            <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>
-              <h1>🎬 CineAI</h1>
-              <p style={{ color: '#94a3b8', marginTop: '8px' }}>
-                AI-powered movie recommendations — coming soon
-              </p>
-            </div>
-          } />
+          <Route path="/"            element={<HomePage />} />
+          <Route path="/movie/:id"   element={<MoviePage />} />
+          <Route path="/favorites"   element={<FavoritesPage />} />
+          {/* 404 catch-all */}
+          <Route path="*"            element={<NotFoundPage />} />
         </Routes>
+        {/* Site-wide footer */}
+        <Footer />
       </BrowserRouter>
     </FavoritesProvider>
   )
