@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cineai-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: TMDB_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.10.12

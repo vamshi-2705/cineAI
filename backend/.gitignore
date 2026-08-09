@@ -14,8 +14,7 @@ ENV/
 # Environment variables
 .env
 
-# ML artifacts (large files — commit only when needed)
-artifacts/movies.pkl
+# ML artifacts (large files — similarity.pkl ignored, movies.pkl committed)
 artifacts/similarity.pkl
 
 # Data files (large — download separately)

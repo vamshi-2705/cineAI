@@ -138,22 +138,39 @@ def build_model():
 def load_model():
     """
     Loads pre-built .pkl files from artifacts/.
-    If they don't exist yet, builds the model first.
-
-    Called once on FastAPI startup — loads into memory
-    so every recommendation request is instant (no recomputation).
+    If movies.pkl exists but similarity.pkl is missing (e.g. cloud deployment),
+    computes the similarity matrix on the fly in ~4 seconds.
+    If neither exists, builds from raw datasets.
     """
     if os.path.exists(MOVIES_PKL) and os.path.exists(SIMILARITY_PKL):
         print("Loading pre-built model from artifacts/...")
+        with open(MOVIES_PKL, 'rb') as f:
+            movies = pickle.load(f)
+        with open(SIMILARITY_PKL, 'rb') as f:
+            similarity = pickle.load(f)
+        print(f"Model loaded: {len(movies)} movies, similarity matrix {similarity.shape}")
+        return movies, similarity
 
+    elif os.path.exists(MOVIES_PKL):
+        print("movies.pkl found. Computing similarity matrix in RAM...")
         with open(MOVIES_PKL, 'rb') as f:
             movies = pickle.load(f)
 
-        with open(SIMILARITY_PKL, 'rb') as f:
-            similarity = pickle.load(f)
+        cv = CountVectorizer(max_features=5000, stop_words='english')
+        vectors = cv.fit_transform(movies['tags']).toarray()
+        similarity = cosine_similarity(vectors)
+
+        try:
+            os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+            with open(SIMILARITY_PKL, 'wb') as f:
+                pickle.dump(similarity, f)
+            print("Saved similarity.pkl for future requests.")
+        except Exception as e:
+            print(f"Notice: Could not write similarity.pkl to disk ({e}), running in-memory.")
 
         print(f"Model loaded: {len(movies)} movies, similarity matrix {similarity.shape}")
         return movies, similarity
+
     else:
         print("No pre-built model found. Building from scratch...")
         return build_model()

@@ -19,8 +19,8 @@ backend/.venv/
 backend/.env
 
 # ML artifacts (large binary files)
-backend/artifacts/movies.pkl
 backend/artifacts/similarity.pkl
+!backend/artifacts/movies.pkl
 
 # Dataset CSV files (download separately)
 backend/data/*.csv
