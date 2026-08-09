@@ -1,144 +1,160 @@
-# 🎬 CineAI — AI-Powered Movie Recommendation System
+# 🎬 CineAI: AI-Powered Movie Recommendation System
 
-> AI-powered movie recommendation system using content-based filtering, cosine similarity, FastAPI + React
+[![LIVE DEMO](https://img.shields.io/badge/LIVE%20DEMO-VERCEL-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://cine-ai-two.vercel.app)
+[![BACKEND API](https://img.shields.io/badge/BACKEND%20API-RENDER-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://cineai-ihm4.onrender.com/docs)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React%2019-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev)
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikit-learn&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+**CineAI** is a full-stack, AI-powered movie recommendation platform designed to solve choice paralysis in movie selection. By vectorizing plot overviews, genres, directors, top cast members, and keywords into high-dimensional feature spaces, CineAI calculates mathematical **Cosine Similarity** across 5,000+ films to deliver instant, hyper-relevant movie recommendations.
+
+---
+
+> [!IMPORTANT]
+> **Why CineAI?**
+> With thousands of movies across streaming platforms, finding what to watch is overwhelming. Keyword search engines only match exact titles or isolated terms. CineAI extracts multi-dimensional semantic "tags" per film (overview + genres + keywords + cast + director) and converts them into word-frequency vectors to calculate similarity metrics in real time.
 
 ---
 
 ## ✨ Features
 
-- 🔍 **Search** any movie from 5000+ titles
-- 🤖 **AI Recommendations** — content-based filtering using cosine similarity
-- 🎭 **Movie Details** — posters, cast, ratings, overview via TMDB API
-- 🎯 **Genre Filter** — filter recommendations by genre
-- ❤️ **Favorites** — save movies and get personalized picks
-- 🔥 **Trending** — see most popular movies right now
+- 🔍 **Live Debounced Search**: Real-time title search across 5,000+ movies with thumbnail previews, release years, star ratings, and keyboard navigation.
+- 🤖 **Content-Based AI Recommendations**: Cosine similarity computation returning top-N matching movies with percentage match badges (e.g. `86% match`).
+- ❤️ **Personalized Favorites Engine**: Save films to your client-side Favorites list; CineAI aggregates your collective taste to recommend multi-favorite picks.
+- 🎭 **Rich TMDB Metadata**: High-res backdrop heroes, poster images, taglines, plot overviews, budget/revenue stats, and cast profile photos.
+- 🎯 **Dynamic Genre Filter**: Filter popular catalogs or recommendation lists by genre pills (Action, Sci-Fi, Thriller, etc.).
+- ⚡ **Optimized RAM Cold Start**: Preprocessed metadata (`movies.pkl`) generates 4,799×4,799 32-bit float matrix in RAM in ~4 seconds, fitting easily within free tier limits.
+- 📱 **Responsive Glassmorphism UI**: Built with a sleek dark glassmorphism design system, smooth CSS micro-animations, and full mobile optimization.
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer     | Technology                          |
-|-----------|-------------------------------------|
-| ML Model  | scikit-learn (CountVectorizer + Cosine Similarity) |
-| Backend   | FastAPI + Uvicorn                   |
-| Data      | Pandas, NumPy, TMDB 5000 Dataset    |
-| API       | TMDB API (posters & details)        |
-| Frontend  | React + Vite + React Router DOM     |
-| HTTP      | Axios                               |
+| Layer | Technology | Description |
+|-------|------------|-------------|
+| **Machine Learning** | `scikit-learn` (`CountVectorizer` + `cosine_similarity`) | Content-based feature vector extraction & mathematical similarity metrics |
+| **Data Pipeline** | `Pandas`, `NumPy` | CSV cleaning, JSON parsing, 32-bit floating-point matrix manipulation |
+| **Backend API** | `FastAPI`, `Uvicorn`, `Gunicorn` | Production-grade Python REST API with parallel TMDB threading & TTL caching |
+| **External API** | `TMDB API v3` | Live movie poster images, high-res backdrops, and cast profiles |
+| **Frontend SPA** | `React 19`, `Vite 8`, `React Router 7` | Ultra-fast single page application with modern component architecture |
+| **State Management** | `React Context` + `localStorage` | Persistent client-side favorites management without complex databases |
+| **HTTP Client** | `Axios` | Asynchronous API client with built-in response caching |
+| **Deployment** | `Render` (Backend), `Vercel` (Frontend) | Free-tier cloud hosting with continuous GitHub deployment |
+
+---
+
+## 🧠 How The ML Recommendation Engine Works
+
+1. **Preprocessing**: Combines plot overview, genres, keywords, top 5 cast members, and director into a unified lowercase `tags` string. Names are formatted without spaces (e.g. `"Tom Hanks"` ➔ `"TomHanks"`) so entity names act as unified features.
+2. **Vectorization**: `CountVectorizer` converts tags into a 5,000-dimensional bag-of-words matrix, filtering out English stop-words (`the`, `is`, `in`).
+3. **Cosine Similarity Computation**: Computes the cosine of the angle between high-dimensional vectors:
+   $$\text{Similarity}(A, B) = \cos(\theta) = \frac{A \cdot B}{\|A\| \|B\|}$$
+4. **Memory Optimization**: Stored in 32-bit floating point precision (`float32`), reducing RAM consumption to ~87 MB for cloud deployment.
+
+---
+
+## 🏗 Architecture
+
+```
+User (Browser) ──► React 19 SPA (Vercel) ──► Axios ──► FastAPI Server (Render)
+                                                              │
+                                            ┌─────────────────┴─────────────────┐
+                                            ▼                                   ▼
+                                   ML Cosine Similarity                TMDB API (v3)
+                                  (RAM Matrix 4799x4799)         (Posters, Backdrops, Cast)
+```
+
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Health check endpoint |
+| `GET` | `/api/movies/popular?limit=20` | Trending popular movies |
+| `GET` | `/api/movies/search?q={query}&limit=8` | Live title search |
+| `GET` | `/api/movies/{id}` | Detailed movie metadata + cast members |
+| `GET` | `/api/movies/{id}/recommend?n=12&genre={genre}` | Single-movie AI recommendations |
+| `GET` | `/api/movies/recommend/by-titles?titles={t1,t2}&n=12` | Multi-favorite personalized AI recommendations |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-movie-recommender/
-├── backend/
-│   ├── main.py           # FastAPI server + all API routes
-│   ├── model.py          # ML recommendation logic
-│   ├── preprocess.py     # Data cleaning pipeline
-│   ├── data/             # TMDB 5000 CSV files (download separately)
-│   ├── artifacts/        # Precomputed .pkl files (auto-generated)
-│   ├── .env.example      # API key template
-│   └── requirements.txt
-│
-├── client/
-│   ├── src/
-│   │   ├── components/   # Reusable UI components
-│   │   ├── pages/        # Route-level pages
-│   │   ├── context/      # Favorites context (localStorage)
-│   │   └── utils/        # Axios API helpers
-│   └── package.json
-│
-└── README.md
+cineAI/
+├── render.yaml                   # Render Blueprint config
+├── DEPLOYMENT.md                 # Complete deployment guide
+├── CINEAI_PROJECT_GUIDE.md       # Comprehensive developer & interview guide
+├── backend/                      # FastAPI Python Backend
+│   ├── main.py                   # FastAPI server & route handlers
+│   ├── model.py                  # ML model load/search & cosine calculations
+│   ├── preprocess.py             # Data preprocessing pipeline
+│   ├── requirements.txt          # Backend dependencies
+│   └── artifacts/
+│       └── movies.pkl            # Preprocessed movie metadata (2.7 MB)
+└── client/                       # React 19 + Vite Frontend
+    ├── index.html                # HTML entry point
+    ├── vercel.json               # Vercel SPA route rewrite rules
+    ├── package.json              # Frontend dependencies
+    └── src/
+        ├── App.jsx               # Application router & layout shell
+        ├── main.jsx              # DOM root mount
+        ├── index.css             # Glassmorphic design system
+        ├── components/           # Navbar, SearchBar, MovieCard, Footer
+        ├── context/              # FavoritesContext state & localStorage
+        ├── pages/                # HomePage, MoviePage, FavoritesPage, NotFoundPage
+        └── utils/                # Axios API instance
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Local Getting Started
 
-### Prerequisites
-- Python 3.9+
+### 1. Prerequisites
+- Python 3.10+
 - Node.js 18+
-- TMDB API Key (free at [themoviedb.org](https://www.themoviedb.org/settings/api))
-- TMDB 5000 Dataset from [Kaggle](https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata)
+- Free TMDB API Key from [themoviedb.org](https://www.themoviedb.org/settings/api)
 
-### Backend Setup
-
+### 2. Backend Setup
 ```bash
 cd backend
 
-# Install dependencies
+# Install Python packages
 pip install -r requirements.txt
 
-# Add your TMDB API key
-cp .env.example .env
-# Edit .env and add your key
+# Create .env file and add your TMDB key
+echo "TMDB_API_KEY=your_tmdb_api_key_here" > .env
 
-# Place dataset CSV files in backend/data/
-# - tmdb_5000_movies.csv
-# - tmdb_5000_credits.csv
-
-# Build the similarity matrix (one time, ~2-5 min)
-python model.py
-
-# Start the server
+# Run FastAPI server
 uvicorn main:app --reload --port 8000
 ```
+*API interactive documentation will be available at `http://localhost:8000/docs`*
 
-API docs available at: `http://localhost:8000/docs`
-
-### Frontend Setup
-
+### 3. Frontend Setup
 ```bash
 cd client
+
+# Install NPM dependencies
 npm install
+
+# Start Vite dev server
 npm run dev
 ```
-
-App runs at: `http://localhost:5173`
-
----
-
-## 🧠 How It Works
-
-1. **Preprocessing** — movie genres, cast, keywords, overview are combined into a single "tags" string per movie
-2. **Vectorization** — CountVectorizer converts tags to a word-frequency matrix (5000 features)
-3. **Similarity** — Cosine similarity is computed for all 5000×5000 movie pairs
-4. **Recommendation** — Top 10 most similar movies are returned for any query
+*App will run at `http://localhost:5173`*
 
 ---
 
-## 📡 API Endpoints
+## 🌐 Live Production Deployments
 
-| Method | Endpoint                              | Description                  |
-|--------|---------------------------------------|------------------------------|
-| GET    | `/api/movies/popular`                 | Trending movies              |
-| GET    | `/api/movies/search?q={query}`        | Search movies by title       |
-| GET    | `/api/movies/{id}`                    | Movie details + cast         |
-| GET    | `/api/movies/{id}/recommend`          | AI recommendations           |
-| GET    | `/api/movies/recommend/by-titles`     | Personalized recommendations |
-
----
-
-## 🌐 Deployment
-
-- **Backend**: [Railway.app](https://railway.app) — set `TMDB_API_KEY` env var
-- **Frontend**: [Vercel](https://vercel.com) — update `VITE_API_URL` to Railway URL
-
----
-
-## 📸 Screenshots
-
-> Coming soon — will be added after UI is complete
+- **Frontend Application**: [https://cine-ai-two.vercel.app](https://cine-ai-two.vercel.app)
+- **Backend Interactive API**: [https://cineai-ihm4.onrender.com/docs](https://cineai-ihm4.onrender.com/docs)
+- **Deployment Guide**: See [DEPLOYMENT.md](file:///c:/Users/Vamshi/OneDrive/Documents/movie_recommendation/DEPLOYMENT.md) for full step-by-step instructions.
 
 ---
 
 ## 📝 License
 
-MIT License — free to use and modify
+This project is licensed under the MIT License — free to use, modify, and distribute. Created by [Vamshi Krishna](https://github.com/vamshi-2705).
